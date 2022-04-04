@@ -1,7 +1,10 @@
+import os
+import sys
 import numpy as np
 from PIL import Image
 from scipy import fft
 import imageio
+import argparse
 
 
 def channel2Lensless(imgC, psfC):
@@ -60,8 +63,15 @@ def loadCropImg(img_path):
     return img
 
 
-def cropImg(img):
-    pass
+def cropImg(img, size=(320, 320)):
+    """
+    Returns Random Cropped image given target size.
+    """
+    dim1, dim2, _ = img.shape
+    c1 = np.random.choice(dim1 - size[0])
+    c2 = np.random.choice(dim2 - size[1])
+
+    return img[c1:c1 + 320, c2:c2 + 320]
 
 
 def loadPSF(psf_path):
@@ -76,22 +86,36 @@ def loadPSF(psf_path):
 
 
 def getArgs():
-    pass
+    """
+    Command Line Arguments
+    """
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        '--img_path',
+        type=str,
+        help="Path to RGB Image",
+        required=False)
+    parser.add_argument(
+        '--save_path',
+        type=str,
+        help="Path to save lensless measurement",
+        required='--img_path' in sys.argv)
+
+    args = parser.parse_args()
+
+    return args
 
 
 def main():
 
     args = getArgs()
 
-    if not args.is_dir:
-        img = loadCropImg(args.img_path)
-        psf = loadPSF(args.psf_path)
+    img = loadCropImg(args.img_path)
+    psf = loadPSF(args.psf_path)
 
-        lenslessRGB = RGB2Lensless(img, psf)
-        imageio.imwrite(args.save_path, lenslessRGB)
-
-    else:
-        raise NotImplementedError()
+    lenslessRGB = RGB2Lensless(img, psf)
+    imageio.imwrite(args.save_path, lenslessRGB)
 
 
 if __name__ == "__main__":

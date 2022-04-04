@@ -39,7 +39,13 @@ def RGB2Lensless(img, psf):
     Returns:
     lenslessRGB - Lensless Measurement
     """
-    
+
+    lenslessRGB = [channel2Lensless(
+        img[:, :, i], psf[:, :, i]) for i in range(3)]
+    lenslessRGB = np.stack(lenslessRGB, axis=2)
+    lenslessRGB = np.abs(lenslessRGB)
+
+    return lenslessRGB
 
 
 def getArgs():

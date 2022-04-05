@@ -97,11 +97,15 @@ def getArgs():
         help="Path to RGB Image",
         required=False)
     parser.add_argument(
-        '--save_path',
+        '--save_dir',
         type=str,
         help="Path to save lensless measurement",
         required='--img_path' in sys.argv)
-    parser.add_argument('--psf_path', type = str)
+    parser.add_argument(
+        '--psf_path',
+        type=str,
+        help="Path to PSF",
+        default="/home/sagnik/Documents/FlyingThings3D/basler_phlatcam_psf_binned2x_320x448_rgb.npy")
 
     args = parser.parse_args()
 
@@ -115,7 +119,20 @@ def main():
     img = loadCropImg(args.img_path)
     psf = loadPSF(args.psf_path)
     lenslessRGB = RGB2Lensless(img, psf)
-    imageio.imwrite(os.path.join(args.save_path, "lensless.png"), lenslessRGB)
+    imageio.imwrite(
+        os.path.join(
+            args.save_dir,
+            "cropped_" +
+            os.path.basename(
+                args.img_path)),
+        (img * 255).astype(np.uint8))
+    imageio.imwrite(
+        os.path.join(
+            args.save_dir,
+            "lensless_" +
+            os.path.basename(
+                args.img_path)),
+        (lenslessRGB * 255).astype(np.uint8))
 
 
 if __name__ == "__main__":

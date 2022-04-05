@@ -101,6 +101,7 @@ def getArgs():
         type=str,
         help="Path to save lensless measurement",
         required='--img_path' in sys.argv)
+    parser.add_argument('--psf_path', type = str)
 
     args = parser.parse_args()
 
@@ -113,9 +114,8 @@ def main():
 
     img = loadCropImg(args.img_path)
     psf = loadPSF(args.psf_path)
-
     lenslessRGB = RGB2Lensless(img, psf)
-    imageio.imwrite(args.save_path, lenslessRGB)
+    imageio.imwrite(os.path.join(args.save_path, "lensless.png"), lenslessRGB)
 
 
 if __name__ == "__main__":

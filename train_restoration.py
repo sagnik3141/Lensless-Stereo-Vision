@@ -12,20 +12,20 @@ from dataset.dataloader import create_dataloaders
 
 
 def train(model, train_loader, val_loader, args, device):
-    
-    optimizer = optimizer = torch.optim.Adam(model.parameters(), lr = args.lr)
+
+    optimizer = optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     criterion = nn.L1Loss()
 
     ### Training ###
 
-    writer = SummaryWriter('runs/train') # Tensorboard for plots
+    writer = SummaryWriter('runs/train')  # Tensorboard for plots
     best_val_loss = None
     counter = 0
     iterator = tqdm(range(args.num_epochs))
     for i in iterator:
 
         ### Weight Updates ###
-        
+
         epoch_loss = 0
         for b, (X_train, Y_train) in enumerate(train_loader):
             X_train = X_train.to(device).float()
@@ -33,17 +33,17 @@ def train(model, train_loader, val_loader, args, device):
             Y_pred = model(X_train)
 
             loss = criterion(Y_pred, Y_train)
-            epoch_loss+=loss
-            
+            epoch_loss += loss
+
             # Backpropagation
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-        epoch_loss = epoch_loss/b
+        epoch_loss = epoch_loss / b
 
         ### Validation ###
-        
+
         val_loss = 0
         for b, (X_val, Y_val) in enumerate(val_loader):
             X_val = X_val.to(device).float()
@@ -51,31 +51,36 @@ def train(model, train_loader, val_loader, args, device):
             Y_pred = model(X_val)
 
             loss = criterion(Y_pred, Y_val)
-            val_loss+=loss
+            val_loss += loss
             ### TODO: Add few images to tensorboard###
 
-        val_loss = val_loss/b
-        iterator.set_postfix({'train_loss': epoch_loss.item(), 'val_loss': val_loss.item()})
+        val_loss = val_loss / b
+        iterator.set_postfix(
+            {'train_loss': epoch_loss.item(), 'val_loss': val_loss.item()})
 
         # Early Stopping
         if best_val_loss is None:
             best_val_loss = val_loss
-        elif val_loss>best_val_loss:
-            counter+=1
-            if counter>args.patience:
+        elif val_loss > best_val_loss:
+            counter += 1
+            if counter > args.patience:
                 iterator.close()
                 print(f"Early stopping at epoch {i+1}.")
                 break
         else:
             best_val_loss = val_loss
             counter = 0
-            torch.save(model.state_dict(), os.path.join(args.ckpt_dir, f'best_weights.pt'))
+            torch.save(
+                model.state_dict(),
+                os.path.join(
+                    args.ckpt_dir,
+                    f'best_weights.pt'))
 
         # Plotting
         writer.add_scalars('Loss', {
             'Train': epoch_loss,
             'Validation': val_loss,
-        }, i+1)
+        }, i + 1)
 
 
 def get_init_unet(args, pretrained):

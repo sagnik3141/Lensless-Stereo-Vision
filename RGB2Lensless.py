@@ -48,6 +48,8 @@ def RGB2Lensless(img, psf):
         img[:, :, i], psf[:, :, i]) for i in range(3)]
     lenslessRGB = np.stack(lenslessRGB, axis=2)
     lenslessRGB = np.abs(lenslessRGB)
+    noise = np.random.normal(0, 0.01, lenslessRGB.shape) # Add 40dB noise
+    lenslessRGB = lenslessRGB+noise
 
     return lenslessRGB
 

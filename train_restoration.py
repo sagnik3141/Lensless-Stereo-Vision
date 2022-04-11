@@ -1,4 +1,5 @@
 import os
+import numpy as np
 from tqdm import tqdm
 import torch
 import torch.nn as nn
@@ -9,14 +10,21 @@ from torch.utils.tensorboard import SummaryWriter
 from models.unet_128 import Unet
 from utils.model_serialization import load_state_dict
 from dataset.dataloader import create_dataloaders
+from dataset.RestorationDataset import ImageDataset
 from wiener_model import wienerModel
-from RGB2Lensless import loadCropImg, loadPSF
+from RGB2Lensless import loadPSF
+from utils.ops import unpixel_shuffle, rggb_2_rgb, rgb_2_rggb
+from utils.vgg_loss import vgg_loss
 
-
-def train(model, train_loader, val_loader, args, device):
+def train(model, wiener_model, psf, train_loader, val_loader, args, device):
 
     optimizer = optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    criterion = nn.L1Loss()
+    criterion = vgg_loss
+
+    # PSF to Torch
+    psf = np.transpose(psf, (2, 0, 1))[np.newaxis,:,:,:]
+    psf = torch.from_numpy(psf)
+    psf = psf.to(device).float()
 
     ### Training ###
 
@@ -29,12 +37,21 @@ def train(model, train_loader, val_loader, args, device):
         ### Weight Updates ###
 
         epoch_loss = 0
-        for b, (X_train, Y_train) in enumerate(train_loader):
-            X_train = X_train.to(device).float()
-            Y_train = Y_train.to(device).float()
-            Y_pred = model(X_train)
+        for b, (img, meas) in enumerate(train_loader):
+            #X_train = X_train.to(device).float()
+            #Y_train = Y_train.to(device).float()
+            #Y_pred = model(X_train)
 
-            loss = criterion(Y_pred, Y_train)
+            img = img.to(device).float()
+            meas = meas.to(device).float()
+
+            intermediate = wiener_model(meas, psf)
+            intermediate_rggb = rgb_2_rggb(intermediate)
+            intermediate_unpixel_shuffled = unpixel_shuffle(intermediate_rggb, args.pixelshuffle_ratio)
+            output_unpixel_shuffled = model(intermediate_unpixel_shuffled)
+            output = F.pixel_shuffle(output_unpixel_shuffled, args.pixelshuffle_ratio)
+
+            loss = criterion(output, img)
             epoch_loss += loss
 
             # Backpropagation
@@ -109,8 +126,12 @@ def main():
     model = get_init_unet(args, pretrained=True)
     model = model.to(device)
 
-    train_loader, val_loader, _ = create_dataloaders(args)
-    train(model, train_loader, val_loader, args, device)
+    wiener_model = wienerModel(args)
+    wiener_model = wiener_model.to(device)
+
+    psf = loadPSF(args.psf_path)
+    train_loader, val_loader, _ = create_dataloaders(args, ImageDataset(args, psf))
+    train(model, wiener_model, psf, train_loader, val_loader, args, device)
 
 
 if __name__ == "__main__":

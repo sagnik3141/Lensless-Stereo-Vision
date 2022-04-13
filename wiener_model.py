@@ -7,7 +7,8 @@ class wienerModel(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.args = args
-        self.reg_param = torch.nn.Parameter(0.1*torch.ones(1))
+        self.device = args.device
+        self.reg_param = torch.nn.Parameter(args.reg_param_init*torch.ones(1)).to(self.device)
 
     def forward(self, meas, psf):
         meas_fft = torch.fft.rfft2(meas)
@@ -15,7 +16,7 @@ class wienerModel(nn.Module):
 
         impr = self.laplacian(2)
         impr = impr[np.newaxis, np.newaxis, :, :]
-        reg = torch.fft.rfft2(torch.from_numpy(impr), meas.size()[-2:]) # Regularization
+        reg = torch.fft.rfft2(torch.from_numpy(impr).to(self.device), meas.size()[-2:]) # Regularization
 
         wiener_filter = torch.conj(psf_fft)/(torch.abs(psf_fft)**2 + self.reg_param*reg**2)
         deconvolved = torch.fft.irfft2(wiener_filter*meas_fft)

@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from pathlib import Path
+import argparse
 from torch.utils.tensorboard import SummaryWriter
 
 from models.unet_128 import Unet
@@ -51,7 +52,7 @@ def train(model, wiener_model, psf, train_loader, val_loader, args, device):
             output_unpixel_shuffled = model(intermediate_unpixel_shuffled)
             output = F.pixel_shuffle(output_unpixel_shuffled, args.pixelshuffle_ratio)
 
-            loss = criterion(output, img)
+            loss = criterion(output, img, device)
             epoch_loss += loss
 
             # Backpropagation
@@ -64,12 +65,17 @@ def train(model, wiener_model, psf, train_loader, val_loader, args, device):
         ### Validation ###
 
         val_loss = 0
-        for b, (X_val, Y_val) in enumerate(val_loader):
-            X_val = X_val.to(device).float()
-            Y_val = Y_val.to(device).float()
-            Y_pred = model(X_val)
+        for b, (img, meas) in enumerate(val_loader):
+            img = img.to(device).float()
+            meas = meas.to(device).float()
 
-            loss = criterion(Y_pred, Y_val)
+            intermediate = wiener_model(meas, psf)
+            intermediate_rggb = rgb_2_rggb(intermediate)
+            intermediate_unpixel_shuffled = unpixel_shuffle(intermediate_rggb, args.pixelshuffle_ratio)
+            output_unpixel_shuffled = model(intermediate_unpixel_shuffled)
+            output = F.pixel_shuffle(output_unpixel_shuffled, args.pixelshuffle_ratio)
+
+            loss = criterion(output, img, device)
             val_loss += loss
             ### TODO: Add few images to tensorboard###
 
@@ -116,7 +122,37 @@ def get_init_unet(args, pretrained):
 
 
 def getArgs():
-    pass
+    
+    parser = argparse.ArgumentParser()
+
+    # Unet Args
+    parser.add_argument('--pixelshuffle_ratio', type = int, default = 2)
+    parser.add_argument('--batch_size', type = int, default = 1)
+    parser.add_argument('--num_groups', type = int, default = 8)
+    parser.add_argument('--device', type = str, default = "cuda:0" if torch.cuda.is_available() else "cpu")
+    parser.add_argument('--ckpt_path', type = str, required=True)
+
+    parser.add_argument('--reg_param_init', type = int, default = 0.1)
+
+    parser.add_argument('--psf_path', type = str, required = True)
+
+    # Data Args
+    parser.add_argument('--source_dir', type = str, required = True)
+    parser.add_argument('--val_split', type = float, default = 0.1)
+    parser.add_argument('--test_split', type = float, default = 0.1)
+    parser.add_argument('--shuffle_data', type = bool, default = True)
+
+    # Train Args
+    parser.add_argument('--lr', type = float, default = 1e-4)
+    parser.add_argument('--num_epochs', type = int, default = 100)
+    parser.add_argument('--patience', type = int, default = 5)
+    parser.add_argument('--ckpt_dir', type = str, default = "checkpoints")
+
+    args = parser.parse_args()
+
+
+
+
 
 
 def main():

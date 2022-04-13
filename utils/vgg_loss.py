@@ -41,9 +41,11 @@ class Vgg16FeatureExtractor(torch.nn.Module):
         out = vgg_outputs(h_relu2_2, h_relu3_3, h_relu4_3)
         return out
 
-def vgg_loss(X, Y):
-    feat_X = Vgg16FeatureExtractor(X)
-    feat_Y = Vgg16FeatureExtractor(Y)
+def vgg_loss(X, Y, device):
+    loss_net = Vgg16FeatureExtractor()
+    loss_net = loss_net.to(device)
+    feat_X = loss_net(X)
+    feat_Y = loss_net(Y)
 
     loss = F.mse_loss(feat_X.relu2_2, feat_Y.relu2_2)
     loss = loss + F.mse_loss(feat_X.relu4_3, feat_Y.relu4_3)

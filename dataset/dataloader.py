@@ -4,11 +4,10 @@ from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 
 
-def create_dataloaders(args, Dataset):
+def create_dataloaders(args, dataset):
     """
     Returns train, val and test dataloaders for given splits and Dataset.
     """
-    dataset = Dataset(args)
     dataset_len = len(dataset)
     indices = list(range(dataset_len))
 
